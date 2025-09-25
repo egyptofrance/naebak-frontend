@@ -1,244 +1,317 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight, X, Volume2, VolumeX } from 'lucide-react';
-import { NewsItem } from '@/types';
+import { useState, useEffect, useRef } from 'react';
 
-interface NewsBarProps {
-  newsItems?: NewsItem[];
-  autoScroll?: boolean;
-  scrollSpeed?: number;
-  showControls?: boolean;
-  className?: string;
+interface NewsBarSettings {
+  isEnabled: boolean;
+  direction: 'ltr' | 'rtl'; // left-to-right or right-to-left
+  speed: number; // pixels per second
+  pauseOnHover: boolean;
+  topBorderColor: string;
+  backgroundColor: string;
+  textColor: string;
+  bottomBorderColor: string;
+  bottomBorderWidth: number;
+  finalBorderColor: string;
+  finalBorderWidth: number;
+  height: number;
+  fontSize: number;
+  fontWeight: string;
 }
 
-const NewsBar: React.FC<NewsBarProps> = ({
-  newsItems = [],
-  autoScroll = true,
-  scrollSpeed = 3000,
-  showControls = true,
-  className = ''
-}) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(autoScroll);
-  const [isVisible, setIsVisible] = useState(true);
+interface NewsItem {
+  id: number;
+  content: string;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
-  // Default news items if none provided
-  const defaultNews: NewsItem[] = [
+export default function NewsBar() {
+  const [newsSettings, setNewsSettings] = useState<NewsBarSettings>({
+    isEnabled: true,
+    direction: 'rtl', // من اليمين إلى اليسار (افتراضي للعربية)
+    speed: 50, // بكسل في الثانية
+    pauseOnHover: true,
+    topBorderColor: '#FF9800', // برتقالي - 2px
+    backgroundColor: '#424242', // رمادي داكن
+    textColor: '#FFFFFF', // أبيض
+    bottomBorderColor: '#FF6F00', // برتقالي داكن - 4px
+    bottomBorderWidth: 4, // 4 بكسل
+    finalBorderColor: '#616161', // رمادي - 2px
+    finalBorderWidth: 2, // 2 بكسل
+    height: 40, // ارتفاع الشريط
+    fontSize: 14,
+    fontWeight: '500'
+  });
+
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([
     {
       id: 1,
-      title: 'مجلس النواب يناقش مشروع قانون جديد لتطوير التعليم في مصر',
-      content: '',
-      is_breaking: true,
-      is_featured: true,
-      tags: ['تعليم', 'قانون'],
-      views_count: 1250,
-      published_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      content: 'الرئيس السيسي يوجه بتطوير منظومة الخدمات الحكومية الرقمية لتسهيل إجراءات المواطنين',
+      isActive: true,
+      priority: 1,
+      createdAt: '2024-01-15T10:00:00Z',
+      updatedAt: '2024-01-15T10:00:00Z'
     },
     {
       id: 2,
-      title: 'النائب أحمد محمد يطالب بتحسين الخدمات الصحية في محافظة الجيزة',
-      content: '',
-      is_breaking: false,
-      is_featured: true,
-      tags: ['صحة', 'الجيزة'],
-      views_count: 890,
-      published_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      content: 'مجلس النواب يناقش مشروع قانون جديد لحماية البيانات الشخصية للمواطنين',
+      isActive: true,
+      priority: 2,
+      createdAt: '2024-01-15T09:30:00Z',
+      updatedAt: '2024-01-15T09:30:00Z'
     },
     {
       id: 3,
-      title: 'لجنة الإسكان تناقش مشروع الإسكان الاجتماعي الجديد',
-      content: '',
-      is_breaking: false,
-      is_featured: true,
-      tags: ['إسكان', 'لجنة'],
-      views_count: 567,
-      published_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 4,
-      title: 'النائبة فاطمة علي تقدم اقتراحاً لدعم المشروعات الصغيرة والمتوسطة',
-      content: '',
-      is_breaking: false,
-      is_featured: true,
-      tags: ['اقتصاد', 'مشروعات'],
-      views_count: 723,
-      published_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      content: 'وزارة التنمية المحلية تعلن عن مبادرة جديدة لتحسين الخدمات في المحافظات',
+      isActive: true,
+      priority: 3,
+      createdAt: '2024-01-15T09:00:00Z',
+      updatedAt: '2024-01-15T09:00:00Z'
     }
-  ];
+  ]);
 
-  const displayNews = newsItems.length > 0 ? newsItems : defaultNews;
+  const [isPaused, setIsPaused] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number>();
 
-  // Auto scroll functionality
+  // دمج جميع الأخبار النشطة في نص واحد
+  const newsText = newsItems
+    .filter(item => item.isActive)
+    .sort((a, b) => a.priority - b.priority)
+    .map(item => item.content)
+    .join(' • ');
+
+  // تحميل إعدادات الشريط الإخباري من الإدارة
   useEffect(() => {
-    if (!isPlaying || displayNews.length <= 1) return;
+    const fetchNewsBarSettings = async () => {
+      try {
+        // استدعاء API لجلب إعدادات الشريط الإخباري من الإدارة
+        // const response = await fetch('/api/admin/news-bar-settings');
+        // const settings = await response.json();
+        // setNewsSettings(settings);
+        
+        // استدعاء API لجلب الأخبار النشطة
+        // const newsResponse = await fetch('/api/news/active');
+        // const news = await newsResponse.json();
+        // setNewsItems(news);
+      } catch (error) {
+        console.error('Error fetching news bar settings:', error);
+      }
+    };
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => 
-        prevIndex === displayNews.length - 1 ? 0 : prevIndex + 1
-      );
-    }, scrollSpeed);
+    fetchNewsBarSettings();
 
+    // تحديث الأخبار كل 5 دقائق
+    const interval = setInterval(fetchNewsBarSettings, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [isPlaying, displayNews.length, scrollSpeed]);
+  }, []);
 
-  const goToPrevious = () => {
-    setCurrentIndex(currentIndex === 0 ? displayNews.length - 1 : currentIndex - 1);
+  // تحريك النص
+  useEffect(() => {
+    if (!newsSettings.isEnabled || !newsText || isPaused) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    let position = newsSettings.direction === 'rtl' 
+      ? scrollElement.offsetWidth 
+      : -scrollElement.scrollWidth;
+
+    const animate = () => {
+      if (newsSettings.direction === 'rtl') {
+        position -= newsSettings.speed / 60; // 60 FPS
+        if (position < -scrollElement.scrollWidth) {
+          position = scrollElement.offsetWidth;
+        }
+      } else {
+        position += newsSettings.speed / 60; // 60 FPS
+        if (position > scrollElement.offsetWidth) {
+          position = -scrollElement.scrollWidth;
+        }
+      }
+
+      scrollElement.style.transform = `translateX(${position}px)`;
+      
+      if (!isPaused) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [newsSettings, newsText, isPaused]);
+
+  // إيقاف/تشغيل الحركة عند التمرير
+  const handleMouseEnter = () => {
+    if (newsSettings.pauseOnHover) {
+      setIsPaused(true);
+    }
   };
 
-  const goToNext = () => {
-    setCurrentIndex(currentIndex === displayNews.length - 1 ? 0 : currentIndex + 1);
+  const handleMouseLeave = () => {
+    if (newsSettings.pauseOnHover) {
+      setIsPaused(false);
+    }
   };
 
-  const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const closeNewsBar = () => {
-    setIsVisible(false);
-  };
-
-  if (!isVisible || displayNews.length === 0) {
+  // إذا كان الشريط معطل أو لا توجد أخبار، لا نعرض شيئاً
+  if (!newsSettings.isEnabled || !newsText) {
     return null;
   }
 
-  const currentNews = displayNews[currentIndex];
-
   return (
-    <div className={`news-bar relative ${className}`}>
-      <div className="flex items-center h-12 px-4">
-        {/* Breaking News Label */}
-        <div className="flex-shrink-0 ml-4">
-          <div className="flex items-center space-x-2 space-x-reverse">
-            <div className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-              {currentNews?.is_breaking ? 'عاجل' : 'أخبار'}
-            </div>
-            {currentNews?.is_breaking && (
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            )}
-          </div>
+    <div className="relative w-full overflow-hidden">
+      {/* الشريط العلوي البرتقالي - 2px */}
+      <div 
+        className="w-full"
+        style={{ 
+          height: '2px',
+          backgroundColor: newsSettings.topBorderColor 
+        }}
+      />
+      
+      {/* الشريط الرئيسي */}
+      <div
+        className="relative w-full overflow-hidden cursor-pointer"
+        style={{
+          height: `${newsSettings.height}px`,
+          backgroundColor: newsSettings.backgroundColor,
+          color: newsSettings.textColor,
+          fontSize: `${newsSettings.fontSize}px`,
+          fontWeight: newsSettings.fontWeight
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* النص المتحرك */}
+        <div
+          ref={scrollRef}
+          className="absolute top-0 whitespace-nowrap flex items-center h-full px-4"
+          style={{
+            direction: newsSettings.direction === 'rtl' ? 'rtl' : 'ltr',
+            fontFamily: 'Cairo, sans-serif'
+          }}
+        >
+          {newsText}
         </div>
 
-        {/* News Content */}
-        <div className="flex-1 overflow-hidden mx-4">
-          <div className="relative">
-            <Link 
-              href={`/news/${currentNews?.id}`}
-              className="block hover:text-orange-300 transition-colors duration-200"
-            >
-              <p className="text-sm font-medium truncate animate-marquee">
-                {currentNews?.title}
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Controls */}
-        {showControls && displayNews.length > 1 && (
-          <div className="flex items-center space-x-2 space-x-reverse flex-shrink-0">
-            {/* Navigation Buttons */}
-            <button
-              onClick={goToPrevious}
-              className="p-1 hover:bg-gray-600 rounded transition-colors duration-200"
-              aria-label="الخبر السابق"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {/* Play/Pause Button */}
-            <button
-              onClick={togglePlayPause}
-              className="p-1 hover:bg-gray-600 rounded transition-colors duration-200"
-              aria-label={isPlaying ? 'إيقاف التشغيل التلقائي' : 'تشغيل التشغيل التلقائي'}
-            >
-              {isPlaying ? (
-                <Volume2 className="w-4 h-4" />
-              ) : (
-                <VolumeX className="w-4 h-4" />
-              )}
-            </button>
-
-            <button
-              onClick={goToNext}
-              className="p-1 hover:bg-gray-600 rounded transition-colors duration-200"
-              aria-label="الخبر التالي"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* News Counter */}
-            <div className="news-separator pr-2 mr-2">
-              <span className="text-xs text-gray-300">
-                {currentIndex + 1} / {displayNews.length}
-              </span>
-            </div>
+        {/* مؤشر الإيقاف المؤقت */}
+        {isPaused && (
+          <div className="absolute top-1 left-2 text-xs opacity-75">
+            ⏸️
           </div>
         )}
-
-        {/* Close Button */}
-        <button
-          onClick={closeNewsBar}
-          className="p-1 hover:bg-gray-600 rounded transition-colors duration-200 mr-2"
-          aria-label="إغلاق شريط الأخبار"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
-
-      {/* Progress Bar */}
-      {isPlaying && displayNews.length > 1 && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-700">
-          <div 
-            className="h-full bg-orange-500 transition-all duration-100 ease-linear"
-            style={{
-              width: `${((currentIndex + 1) / displayNews.length) * 100}%`
-            }}
-          />
-        </div>
-      )}
-
-      {/* Dots Indicator */}
-      {displayNews.length > 1 && displayNews.length <= 5 && (
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 space-x-reverse">
-          {displayNews.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`w-1.5 h-1.5 rounded-full transition-colors duration-200 ${
-                index === currentIndex ? 'bg-orange-400' : 'bg-gray-600'
-              }`}
-              aria-label={`الانتقال إلى الخبر ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
+      
+      {/* الشريط السفلي البرتقالي - 4px */}
+      <div 
+        className="w-full"
+        style={{ 
+          height: `${newsSettings.bottomBorderWidth}px`,
+          backgroundColor: newsSettings.bottomBorderColor 
+        }}
+      />
+      
+      {/* الشريط النهائي الرمادي - 2px */}
+      <div 
+        className="w-full"
+        style={{ 
+          height: `${newsSettings.finalBorderWidth}px`,
+          backgroundColor: newsSettings.finalBorderColor 
+        }}
+      />
     </div>
   );
-};
-
-// CSS for marquee animation (to be added to globals.css)
-const marqueeStyles = `
-@keyframes marquee {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
 }
 
-.animate-marquee {
-  animation: marquee 20s linear infinite;
-}
+// Hook لاستخدام إعدادات الشريط الإخباري في الإدارة
+export function useNewsBarSettings() {
+  const [settings, setSettings] = useState<NewsBarSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
-.animate-marquee:hover {
-  animation-play-state: paused;
-}
-`;
+  const updateSettings = async (newSettings: Partial<NewsBarSettings>) => {
+    try {
+      setLoading(true);
+      // استدعاء API لتحديث الإعدادات
+      // const response = await fetch('/api/admin/news-bar-settings', {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(newSettings)
+      // });
+      // const updatedSettings = await response.json();
+      // setSettings(updatedSettings);
+      
+      // محاكاة التحديث
+      setSettings(prev => prev ? { ...prev, ...newSettings } : null);
+    } catch (error) {
+      console.error('Error updating news bar settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export default NewsBar;
+  const addNewsItem = async (newsItem: Omit<NewsItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      // استدعاء API لإضافة خبر جديد
+      // const response = await fetch('/api/news', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(newsItem)
+      // });
+      // const newNews = await response.json();
+      
+      console.log('Adding news item:', newsItem);
+    } catch (error) {
+      console.error('Error adding news item:', error);
+    }
+  };
+
+  const updateNewsItem = async (id: number, updates: Partial<NewsItem>) => {
+    try {
+      // استدعاء API لتحديث الخبر
+      // const response = await fetch(`/api/news/${id}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(updates)
+      // });
+      // const updatedNews = await response.json();
+      
+      console.log('Updating news item:', id, updates);
+    } catch (error) {
+      console.error('Error updating news item:', error);
+    }
+  };
+
+  const deleteNewsItem = async (id: number) => {
+    try {
+      // استدعاء API لحذف الخبر
+      // await fetch(`/api/news/${id}`, { method: 'DELETE' });
+      
+      console.log('Deleting news item:', id);
+    } catch (error) {
+      console.error('Error deleting news item:', error);
+    }
+  };
+
+  return {
+    settings,
+    loading,
+    updateSettings,
+    addNewsItem,
+    updateNewsItem,
+    deleteNewsItem
+  };
+}
