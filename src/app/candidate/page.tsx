@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import MessageModal from '@/components/MessageModal'
 
 export default function CandidatePage() {
   const [activeTab, setActiveTab] = useState('personal')
   const [achievementsPage, setAchievementsPage] = useState(1)
   const [eventsPage, setEventsPage] = useState(1)
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   
   const itemsPerPage = 5
 
@@ -368,7 +370,11 @@ export default function CandidatePage() {
 
               {/* زر التواصل */}
               <div className="d-grid">
-                <button className="btn btn-lg fw-bold py-3" style={{backgroundColor: '#E67514', color: 'white', border: 'none'}}>
+                <button 
+                  className="btn btn-lg fw-bold py-3" 
+                  style={{backgroundColor: '#E67514', color: 'white', border: 'none'}}
+                  onClick={() => setIsMessageModalOpen(true)}
+                >
                   <i className="fas fa-comments me-2"></i>
                   تواصل مع مرشحك
                 </button>
@@ -622,6 +628,14 @@ export default function CandidatePage() {
       </div>
 
       <Footer />
+      
+      {/* نافذة إرسال الرسالة */}
+      <MessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        recipientName="م. سارة أحمد محمود"
+        recipientType="مرشح"
+      />
     </div>
   );
 }

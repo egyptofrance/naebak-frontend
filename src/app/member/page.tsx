@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import MessageModal from '@/components/MessageModal'
 
 export default function MemberPage() {
   const [activeTab, setActiveTab] = useState('personal')
   const [achievementsPage, setAchievementsPage] = useState(1)
   const [eventsPage, setEventsPage] = useState(1)
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   
   const itemsPerPage = 5
 
@@ -329,7 +331,11 @@ export default function MemberPage() {
 
               {/* زر التواصل */}
               <div className="d-grid">
-                <button className="btn btn-success btn-lg fw-bold py-3">
+                <button 
+                  className="btn btn-lg fw-bold py-3 text-white"
+                  style={{backgroundColor: '#004705'}}
+                  onClick={() => setIsMessageModalOpen(true)}
+                >
                   <i className="fas fa-comments me-2"></i>
                   تواصل مع نائبك
                 </button>
@@ -490,6 +496,14 @@ export default function MemberPage() {
       </div>
 
       <Footer />
+      
+      {/* نافذة إرسال الرسالة */}
+      <MessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        recipientName="د. أحمد محمد علي السيد"
+        recipientType="نائب"
+      />
     </div>
   );
 }

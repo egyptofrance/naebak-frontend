@@ -51,8 +51,9 @@ export default function Header() {
               </div>
               
               {/* زر تسجيل شكوى */}
-              <button 
-                className="btn btn-sm fw-bold"
+              <a 
+                href="/complaint"
+                className="btn btn-sm fw-bold text-decoration-none"
                 style={{
                   backgroundColor: '#E67514',
                   color: 'black',
@@ -61,9 +62,9 @@ export default function Header() {
                   fontSize: '0.85rem'
                 }}
               >
-                <span className="d-none d-md-inline">تسجيل شكوى</span>
-                <span className="d-md-none">شكوى</span>
-              </button>
+                <span className="d-none d-md-inline fw-bold">تسجيل شكوى</span>
+                <span className="d-md-none fw-bold">شكوى</span>
+              </a>
             </div>
           </div>
         </div>
