@@ -41,7 +41,7 @@ export default function Header() {
             <div className="d-flex align-items-center justify-content-end gap-2 gap-md-3">
               {/* الإشعارات - مخفية في الموبايل الصغير */}
               <div className="position-relative d-none d-md-block">
-                <i className="fas fa-bell fs-5" style={{color: '#004705'}}></i>
+                <i className="fas fa-bell text-success fs-5"></i>
                 <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
               </div>
               
