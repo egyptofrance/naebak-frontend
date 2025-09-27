@@ -1,9 +1,9 @@
 'use client';
 
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import Banner from '@/components/Banner';
-import NewsTicker from '@/components/NewsTicker';
+import Header from '../../components/Header';
+import Footer from '../../components/Footer';
+import Banner from '../../components/Banner';
+import NewsTicker from '../../components/NewsTicker';
 
 export default function ContactPage() {
   return (

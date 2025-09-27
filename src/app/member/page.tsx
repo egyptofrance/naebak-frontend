@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import MessageModal from '@/components/MessageModal'
+import Header from '../../components/Header'
+import Footer from '../../components/Footer'
+import MessageModal from '../../components/MessageModal'
 
 export default function MemberPage() {
   const [activeTab, setActiveTab] = useState('personal')
